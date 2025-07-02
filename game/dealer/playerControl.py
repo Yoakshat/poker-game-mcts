@@ -2,7 +2,7 @@ from os import path as p
 from sys import path
 player_package = p.abspath("..") + "/player"
 path.append(player_package)
-from player import Player, EasyBot
+from player import Player, EasyBot, MonteCarloPlayer
 
 class PlayerControl(object):
     def __init__(self):
@@ -29,10 +29,16 @@ class PlayerControl(object):
         return self
     
     def createPlayers(self, name = "Player0", numPlayers=2,money=500.0, difficulty="easy"):
-        self.addPlayer(Player(name, money))
+        # self.addPlayer(Player(name, money))
+        self.addPlayer(MonteCarloPlayer())
+        self.players[0].name = name
+
         for i in range(1,numPlayers+1):
             if difficulty == "easy":
                self.addPlayer(EasyBot())
+               self.players[i].name +=str(i)
+            elif difficulty == "monte":
+               self.addPlayer(MonteCarloPlayer())
                self.players[i].name +=str(i)
         return self.players
 

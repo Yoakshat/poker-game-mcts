@@ -20,7 +20,7 @@ class Player(object):
         self.deposit = 0.0 #how much money player spent in one game
         self.bet = 0.0 #how much money is needed for one player to stay in game
         #bet - deposit is debt
-    
+
     @property
     def debt(self):
         """
@@ -29,6 +29,10 @@ class Player(object):
 
         """
         return self.bet - self.deposit
+    
+    def __eq__(self, other): 
+        return self.name == other.name
+    
 
     def clearDebt(self):
         """
