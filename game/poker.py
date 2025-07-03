@@ -18,6 +18,7 @@ class Game(object):
     """
     def __init__(self):
         self.rounds = 1
+        self.phase = ""
         self.players = []
         self.dealer = dealer.Dealer()
 
@@ -52,82 +53,45 @@ class Game(object):
         myPlayer = self.findPlayer(playerName)
         return myPlayer.getLegalActions()
     
-    # returns (the total return of taking this action till the end of the game), state after taking action
-    # TODO: also in a virtual round, turn off printing (done in background)
-
-    # have game control taking action for the player we want
-
-    def virtualRound(self, playerName, action): 
-        iters = 0
-        returnForAction = 0
-        stateAfterAction = None
-
-        myPlayer = self.findPlayer(playerName)
-
-        while True:
-            players = self.players[:]
-            startMoney = myPlayer.money
-
-            # runs through each player's turn
-            for index,player in enumerate(players[:]):
-                record = None
-                if(player == myPlayer): 
-                    if(iters == 0): 
-                        # select the action
-                        record = player.runAction(action)
-                    else: 
-                        # choose a random action (e.g. random policy)
-                        # first get legal actions
-                        legal = player.getLegalActions()
-                        rand = legal[randint(0, len(legal)-1)]
-                        record = player.runAction(rand)
-                else: 
-                    record = self.options(player)
-                index = (index+1) % len(self.players) 
-                self.players[index].bet = record[0]
-                if record[1] == -1:
-                    players.remove(player)
-                else:
-                    self.dealer.playerControl.pot += record[1]
-
-            # turn-through: all living players have raised, called, folded, or checked
-            # after a turn-through, get immediate state for the next node
-            if(iters == 0): 
-                # get this version of the game
-                stateAfterAction = self.copy()
-                iters += 1
-
-
-            # return is how much i gained or lost in my pot
-            returnForAction += (myPlayer.money - startMoney)
-            self.players = players[:] 
-            
-            if self.isAllIn():
-                break
-            elif self.controlDeposit():
-                break
-            else:
-                continue
-
-        return returnForAction, stateAfterAction
-    
     def options(self, player): 
         if isinstance(player, MonteCarloPlayer): 
             # pass game instance in
             return player.options(game=self)
         else: 
             return player.options()
+        
+    def resumeRound(self, player, action): 
+        return self.round(montePlayer=player, action=action, resume=True)
 
-    def round(self):
+    def round(self, montePlayer=None, action=None, resume=False):
         """
         Goes through all players until every player gave same ammount to the pot
         :returns: TODO
-
         """
+
+        didIPlay = False
+
         while True:
             players = self.players[:]
             for index,player in enumerate(players[:]):
-                record = self.options(player)
+                record = None
+
+                if resume: 
+                    if(not didIPlay): 
+                       # check if it's my turn
+                        if(montePlayer == player): 
+                            didIPlay = True
+                            record = player.runAction(action)
+                            # set it to random for rest of the time 
+                            player.changeToRandom() 
+                        else: 
+                            # skip
+                            continue
+                    else: 
+                        # if i did play, run like usual 
+                        record = self.options(player)
+                else: 
+                    record = self.options(player)
                 
                 index = (index+1) % len(self.players) 
                 self.players[index].bet = record[0]
@@ -200,6 +164,7 @@ class Game(object):
 
         """
         print("\n\t\t{}\n".format(phase))
+        self.phase = phase
         self.printSituation(self.dealer.cardControl.tableCards)
         self.round()
         self.dealer.cardOnTable(phase)
@@ -214,8 +179,46 @@ class Game(object):
             if player.bet == -1:
                 return True
         return False
+    
+    # requires the player,
+    # and the action as an integer
+    def virtualGame(self, player, action):
+        start = player.money
+
+        # takes action, and afterwards sets policy to random, 
+        # and finishes that round
+        playerAfter, gameAfter = self.resumeRound(player, action)
+        gameAfter = gameAfter.copy()
+        playerAfter = playerAfter.copy()
+        # reset to original policy
+        playerAfter.reset()
+
+        # rest of game should continue like before
+        if self.phase == "Preflop": 
+            # do both 2 cases
+            self.flop()
+            self.turn()
+        elif self.phase == "Flop": 
+            self.turn()
+
+        return (player.money - start), gameAfter, playerAfter
 
 
+    def flop(self): 
+        if self.isAllIn():
+            #allin on flop
+            return self.dealer.cardOnTable("All-flop")
+        else:
+            #Flop
+            self.startPhase("Flop")
+
+    def turn(self): 
+        if self.isAllIn():
+            #allin on turn
+            return self.dealer.cardOnTable("All-turn")
+        else:
+            #Turn
+            self.startPhase("Turn")
 
     def eachRound(self):
         """TODO: Docstring for function.
@@ -223,20 +226,10 @@ class Game(object):
         :returns: TODO
 
         """
+
         self.dealer.playerControl.ante(self.rounds)
         #Preflop
         self.startPhase("Preflop")
-        if self.isAllIn():
-            #allin on flop
-            return self.dealer.cardOnTable("All-flop")
-        else:
-            #Flop
-            self.startPhase("Flop")
-            
-        if self.isAllIn():
-            #allin on turn
-            return self.dealer.cardOnTable("All-turn")
-        else:
-            #Turn
-            self.startPhase("Turn")
+        self.flop()
+        self.turn()
 

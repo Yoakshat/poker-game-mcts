@@ -26,6 +26,7 @@ def main():
         
         game.dealer.gameOn()
         game.dealer.giveCards()
+        # we only care about this when running virtually
         game.eachRound()
         #Showdown
         print("\n\t\tShowdown\n")

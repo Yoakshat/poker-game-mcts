@@ -6,8 +6,10 @@ import heapq
 # and update a tree
 
 class MCT(): 
-    def __init__(self, game, playerName, numIters): 
-        self.root = MCT.Node(parent=None, action=None, game=game, playerName=playerName)
+    # requires the player and the playerIndex
+    # TODO: also we can't expand our node when the player is out of the game
+    def __init__(self, game, player, numIters): 
+        self.root = MCT.Node(parent=None, action=None, game=game, player=player)
         self.numIters = numIters
 
     # select node and expand
@@ -15,7 +17,7 @@ class MCT():
         exploreFrom = root
         if root.explored(): 
             # explore from best children node
-            exploreFrom = self.selectNode(root.children[0])
+            exploreFrom = self.selectExpand(root.children[0])
 
         # take an action
         exploreFrom.takeAction()
@@ -32,18 +34,18 @@ class MCT():
     # parent, actionFromParent
     @functools.total_ordering
     class Node: 
-        def __init__(self, parent, action, game, playerName):
+        def __init__(self, parent, action, game, player):
             self.parent = parent
             self.action = action
             self.qval = 0
             self.n = 1
             self.game = game
-            self.playerName = playerName
+            self.player = player
 
             # sort this in-place
             self.children = [] 
             heapq.heapify(self.children)
-            self.exploreActions = game.getLegalActions(playerName)
+            self.exploreActions = player.getLegalActions()
 
         def update(self, q): 
             # first update myself
@@ -65,10 +67,11 @@ class MCT():
             self.exploreActions.remove(action)
 
             # returns (return of action + game immediately after taking first action)
-            # run a virtual round where this player takes this action
-            returnForAction, newGame = self.game.copy().virtualRound(self.playerName, action)
+            # run a virtual game where this player takes this action, and then random rollout
+            returnForAction, newGame, newPlayer = self.game.copy().virtualGame(self.player, action)
+            print("Return for round: ", returnForAction)
 
-            childNode = MCT.Node(self, action, newGame, self.playerName)
+            childNode = MCT.Node(self, action, newGame, newPlayer)
             childNode.update(returnForAction)
 
             # add childNode to children
