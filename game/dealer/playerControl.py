@@ -37,9 +37,6 @@ class PlayerControl(object):
             if difficulty == "easy":
                self.addPlayer(EasyBot())
                self.players[i].name +=str(i)
-            elif difficulty == "monte":
-               self.addPlayer(MonteCarloPlayer())
-               self.players[i].name +=str(i)
         return self.players
 
     def givePot(self,players):

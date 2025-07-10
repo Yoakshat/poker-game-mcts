@@ -13,14 +13,16 @@ class MCT():
         self.numIters = numIters
 
     # select node and expand
-    def selectExpand(self, root): 
+    def selectExpand(self, root):   
+        # if reached a node that can't be expanded what to do 
+
         exploreFrom = root
         if root.explored(): 
             # explore from best children node
             exploreFrom = self.selectExpand(root.children[0])
-
-        # take an action
-        exploreFrom.takeAction()
+        else: 
+            # take an action
+            exploreFrom.takeAction()
 
     def solve(self): 
         for _ in range(self.numIters): 
@@ -38,7 +40,7 @@ class MCT():
             self.parent = parent
             self.action = action
             self.qval = 0
-            self.n = 1
+            self.n = 0
             self.game = game
             self.player = player
 
@@ -47,35 +49,49 @@ class MCT():
             heapq.heapify(self.children)
             self.exploreActions = player.getLegalActions()
 
+        # updating with a q-val
         def update(self, q): 
             # first update myself
             self.qval += q
+            self.n += 1
             # update my parent (recursive case)
             if self.parent is not None: 
-                self.parent.update(self.qval)
-                self.parent.n += 1
+                self.parent.update(q)
 
         # already explored all actions
         def explored(self) -> bool: 
             return len(self.exploreActions) == 0
         
         def takeAction(self): 
-            # action is whatever is left in exploreActions (pick at random)
-
             # explore + remove
             action = self.exploreActions[randint(0, len(self.exploreActions)-1)] 
             self.exploreActions.remove(action)
 
-            # returns (return of action + game immediately after taking first action)
-            # run a virtual game where this player takes this action, and then random rollout
-            returnForAction, newGame, newPlayer = self.game.copy().virtualGame(self.player, action)
-            print("Return for round: ", returnForAction)
+            simulatedGame = self.game.copy()
+            virtPlayer = simulatedGame.findPlayer(self.player)
 
-            childNode = MCT.Node(self, action, newGame, newPlayer)
-            childNode.update(returnForAction)
+            beforeRollout = virtPlayer.money
 
-            # add childNode to children
-            heapq.heappush(self.children, childNode)
+            # simulate action
+            virtPlayer.runAction(action)
+            
+            # rollout rest of game
+            simulatedGame.makeSimPlayers()
+            simulatedGame.playOut(self.player)
+            afterRollout = virtPlayer.money
+
+            newGame = virtPlayer.getNextDecision()
+
+            # leaf node condition 
+            if(newGame is None):
+                pass
+            else:
+                # player stays the same but game state changes
+                childNode = MCT.Node(self, action, newGame, self.player)
+                childNode.update(afterRollout - beforeRollout)
+
+                # add childNode to children
+                heapq.heappush(self.children, childNode)
 
         def __eq__(self, other): 
             return (self.qval / self.n) == (other.qval / other.n)

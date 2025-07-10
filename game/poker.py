@@ -44,61 +44,69 @@ class Game(object):
                 return False
         return True
     
-    def findPlayer(self, playerName): 
-        for player in self.players: 
-            if(player.name == playerName): 
-                return player
+    def findPlayer(self, player): 
+        for p in self.players: 
+            if(p == player): 
+                return p
             
     def getLegalActions(self, playerName): 
         myPlayer = self.findPlayer(playerName)
         return myPlayer.getLegalActions()
     
+    # friendly for different players
     def options(self, player): 
         if isinstance(player, MonteCarloPlayer): 
             # pass game instance in
             return player.options(game=self)
         else: 
             return player.options()
-        
-    def resumeRound(self, player, action): 
-        return self.round(montePlayer=player, action=action, resume=True)
 
-    def round(self, montePlayer=None, action=None, resume=False):
+    def resumeRound(self, montePlayer): 
+        alreadyPlayed = True
+
+        players = self.players[:]
+        # play out rest of player's turns
+        for index, p in enumerate(players[:]):
+            # check if equals by name
+            if(p == montePlayer): 
+                alreadyPlayed = False
+            elif not alreadyPlayed: 
+                # play turn
+                self.playTurn(index, p, players)
+
+        self.players = players[:]
+
+        # this round is finished
+        # next decision we need to make is the player's next turn
+        if (self.isAllIn() or self.controlDeposit()): 
+            pass 
+        else: 
+            self.round()
+
+    # record the number of virtual turns the player has taken
+    def playTurn(self, index, player, players): 
+        record = self.options(player)
+                
+        index = (index+1) % len(self.players) 
+        self.players[index].bet = record[0]
+        if record[1] == -1:
+            players.remove(player)
+        else:
+            self.dealer.playerControl.pot += record[1]
+
+        
+    def round(self):
         """
         Goes through all players until every player gave same ammount to the pot
         :returns: TODO
         """
-
-        didIPlay = False
+        # multiple turns in a round
+        # return player, game after first turn
 
         while True:
             players = self.players[:]
             for index,player in enumerate(players[:]):
-                record = None
-
-                if resume: 
-                    if(not didIPlay): 
-                       # check if it's my turn
-                        if(montePlayer == player): 
-                            didIPlay = True
-                            record = player.runAction(action)
-                            # set it to random for rest of the time 
-                            player.changeToRandom() 
-                        else: 
-                            # skip
-                            continue
-                    else: 
-                        # if i did play, run like usual 
-                        record = self.options(player)
-                else: 
-                    record = self.options(player)
-                
-                index = (index+1) % len(self.players) 
-                self.players[index].bet = record[0]
-                if record[1] == -1:
-                    players.remove(player)
-                else:
-                    self.dealer.playerControl.pot += record[1]
+                self.playTurn(index, player, players)
             
             self.players = players[:] 
             
@@ -180,18 +188,9 @@ class Game(object):
                 return True
         return False
     
-    # requires the player,
-    # and the action as an integer
-    def virtualGame(self, player, action):
-        start = player.money
-
-        # takes action, and afterwards sets policy to random, 
-        # and finishes that round
-        playerAfter, gameAfter = self.resumeRound(player, action)
-        gameAfter = gameAfter.copy()
-        playerAfter = playerAfter.copy()
-        # reset to original policy
-        playerAfter.reset()
+    def playOut(self, player):
+        # resume round from after the player's turn
+        self.resumeRound(player)
 
         # rest of game should continue like before
         if self.phase == "Preflop": 
@@ -200,9 +199,11 @@ class Game(object):
             self.turn()
         elif self.phase == "Flop": 
             self.turn()
-
-        return (player.money - start), gameAfter, playerAfter
-
+    
+    def makeSimPlayers(self):
+        # make them all random players
+        for p in self.players: 
+            p.virtualMode()
 
     def flop(self): 
         if self.isAllIn():

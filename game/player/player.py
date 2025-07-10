@@ -20,6 +20,22 @@ class Player(object):
         self.deposit = 0.0 #how much money player spent in one game
         self.bet = 0.0 #how much money is needed for one player to stay in game
         #bet - deposit is debt
+        self.virtual = False
+
+    def getLegalActions(self): 
+        allActions = [i for i in range(1, 6)]
+
+        if self.bet == -1: 
+            # you can only go all-in or fold
+            allActions = [4, 5]
+        elif self.debt:
+            # cannot check 
+            allActions = allActions[1:]
+        
+        return allActions
+    
+    def virtualMode(self): 
+        self.virtual = True
 
     @property
     def debt(self):
@@ -138,14 +154,24 @@ class Player(object):
     def quit(self):
         print("Exiting program. Hope you will come back again.")
         exit()
+
+    def runAction(self, action):
+        options = {1: self.checkBet ,
+                    2: self.callBet , 
+                    3: self.raiseBet , 
+                    4: self.foldBet , 
+                    5: self.allin,
+                    }
+        
+        return options[action]()
     
     def options(self):
-        """
-        Gives all options to the player
-        :action: input of the player
-        :returns: used function
+        if self.virtual: 
+            legal = self.getLegalActions()
+            action = legal[randint(0, len(legal)-1)]
+            return self.runAction(action)
 
-        """
+        '''
         options = { 0: self.quit,
                     1: self.checkBet ,
                     2: self.callBet , 
@@ -153,17 +179,7 @@ class Player(object):
                     4: self.foldBet , 
                     5: self.allin,
                     }
-#        while True:
-#            action = optionsInput()
-#            choosed = options[action]()
-#            if self.bet == -1:
-#                    return allInOrFold()
-#            else:
-#                if choosed is not False:
-#                    return choosed
-#                else:
-#                    continue
-
+        
         while True:
             if self.bet == -1:
                 action = allInOrFold()
@@ -174,3 +190,4 @@ class Player(object):
                 return choosed
             else:
                 continue
+        '''
