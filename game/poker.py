@@ -189,6 +189,7 @@ class Game(object):
         return False
     
     def playOut(self, player):
+        print(len(self.players))
         # resume round from after the player's turn
         self.resumeRound(player)
 

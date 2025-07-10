@@ -6,27 +6,26 @@ import heapq
 # and update a tree
 
 class MCT(): 
-    # requires the player and the playerIndex
-    # TODO: also we can't expand our node when the player is out of the game
     def __init__(self, game, player, numIters): 
         self.root = MCT.Node(parent=None, action=None, game=game, player=player)
         self.numIters = numIters
 
     # select node and expand
     def selectExpand(self, root):   
-        # if reached a node that can't be expanded what to do 
+        # root might be a leaf node (no more to explore from here OR take an action)
+        if(root.isLeaf()):
+            return 
 
-        exploreFrom = root
         if root.explored(): 
             # explore from best children node
-            exploreFrom = self.selectExpand(root.children[0])
+            self.selectExpand(root.children[0])
         else: 
             # take an action
-            exploreFrom.takeAction()
+            root.takeAction()
 
     def solve(self): 
         for _ in range(self.numIters): 
-            self.selectExpand(self.root)
+             self.selectExpand(self.root)
 
         # select the action from parent to best child node
         return self.root.children[0].action
@@ -48,6 +47,10 @@ class MCT():
             self.children = [] 
             heapq.heapify(self.children)
             self.exploreActions = player.getLegalActions()
+
+        def isLeaf(self): 
+            # no next decision point
+            return (self.game is None)
 
         # updating with a q-val
         def update(self, q): 
@@ -82,16 +85,12 @@ class MCT():
 
             newGame = virtPlayer.getNextDecision()
 
-            # leaf node condition 
-            if(newGame is None):
-                pass
-            else:
-                # player stays the same but game state changes
-                childNode = MCT.Node(self, action, newGame, self.player)
-                childNode.update(afterRollout - beforeRollout)
+            # player stays the same but game state changes
+            childNode = MCT.Node(self, action, newGame, self.player)
+            childNode.update(afterRollout - beforeRollout)
 
-                # add childNode to children
-                heapq.heappush(self.children, childNode)
+            # add childNode to children
+            heapq.heappush(self.children, childNode)
 
         def __eq__(self, other): 
             return (self.qval / self.n) == (other.qval / other.n)
